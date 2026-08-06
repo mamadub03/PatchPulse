@@ -5,15 +5,26 @@ type HealthResponse = {
   service: string;
 };
 
+type ReadinessResponse = {
+  status: "ready" | "not_ready";
+  database: "connected" | "unavailable";
+};
+
 type BackendState =
   | { status: "checking" }
   | { status: "healthy"; data: HealthResponse }
   | { status: "error"; message: string };
 
+type DatabaseState =
+  | { status: "checking" }
+  | { status: "connected"; data: ReadinessResponse }
+  | { status: "unavailable"; message: string };
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 function App() {
   const [backendState, setBackendState] = useState<BackendState>({ status: "checking" });
+  const [databaseState, setDatabaseState] = useState<DatabaseState>({ status: "checking" });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -47,6 +58,47 @@ function App() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function checkDatabaseReadiness(): Promise<void> {
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/v1/readiness`, {
+          signal: controller.signal,
+        });
+
+        const data = (await response.json()) as ReadinessResponse;
+
+        if (response.status === 503) {
+          setDatabaseState({
+            status: "unavailable",
+            message: "Database readiness check reported unavailable.",
+          });
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Readiness endpoint returned HTTP ${response.status}`);
+        }
+
+        setDatabaseState({ status: "connected", data });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        setDatabaseState({
+          status: "unavailable",
+          message: error instanceof Error ? error.message : "Database readiness check failed",
+        });
+      }
+    }
+
+    void checkDatabaseReadiness();
+
+    return () => controller.abort();
+  }, []);
+
   return (
     <main className="app-shell">
       <section className="intro">
@@ -59,23 +111,52 @@ function App() {
       </section>
 
       <section className="status-panel" aria-live="polite">
-        <div>
-          <p className="panel-label">Backend connection</p>
-          <h2>{getStatusTitle(backendState)}</h2>
-        </div>
-        <StatusBadge backendState={backendState} />
-        <p className="status-detail">{getStatusDetail(backendState)}</p>
+        <StatusBlock
+          label="Backend connection"
+          title={getBackendStatusTitle(backendState)}
+          badge={backendState.status}
+          badgeTone={backendState.status}
+          detail={getBackendStatusDetail(backendState)}
+        />
+        <StatusBlock
+          label="Database readiness"
+          title={getDatabaseStatusTitle(databaseState)}
+          badge={databaseState.status}
+          badgeTone={databaseState.status}
+          detail={getDatabaseStatusDetail(databaseState)}
+        />
         <p className="api-url">Using {apiBaseUrl}</p>
       </section>
     </main>
   );
 }
 
-function StatusBadge({ backendState }: { backendState: BackendState }) {
-  return <span className={`status-badge ${backendState.status}`}>{backendState.status}</span>;
+function StatusBlock({
+  label,
+  title,
+  badge,
+  badgeTone,
+  detail,
+}: {
+  label: string;
+  title: string;
+  badge: string;
+  badgeTone: string;
+  detail: string;
+}) {
+  return (
+    <div className="status-block">
+      <div>
+        <p className="panel-label">{label}</p>
+        <h2>{title}</h2>
+      </div>
+      <span className={`status-badge ${badgeTone}`}>{badge}</span>
+      <p className="status-detail">{detail}</p>
+    </div>
+  );
 }
 
-function getStatusTitle(backendState: BackendState): string {
+function getBackendStatusTitle(backendState: BackendState): string {
   if (backendState.status === "healthy") {
     return "API is healthy";
   }
@@ -87,7 +168,7 @@ function getStatusTitle(backendState: BackendState): string {
   return "Checking API";
 }
 
-function getStatusDetail(backendState: BackendState): string {
+function getBackendStatusDetail(backendState: BackendState): string {
   if (backendState.status === "healthy") {
     return `${backendState.data.service} responded with ${backendState.data.status}.`;
   }
@@ -97,6 +178,30 @@ function getStatusDetail(backendState: BackendState): string {
   }
 
   return "Waiting for the health endpoint to respond.";
+}
+
+function getDatabaseStatusTitle(databaseState: DatabaseState): string {
+  if (databaseState.status === "connected") {
+    return "Database connected";
+  }
+
+  if (databaseState.status === "unavailable") {
+    return "Database unavailable";
+  }
+
+  return "Checking database";
+}
+
+function getDatabaseStatusDetail(databaseState: DatabaseState): string {
+  if (databaseState.status === "connected") {
+    return `PostgreSQL readiness is ${databaseState.data.database}.`;
+  }
+
+  if (databaseState.status === "unavailable") {
+    return databaseState.message;
+  }
+
+  return "Waiting for the readiness endpoint to respond.";
 }
 
 export default App;

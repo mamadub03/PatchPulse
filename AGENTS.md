@@ -1,4 +1,4 @@
-cd # PatchPulse Agent Guidance
+# PatchPulse Agent Guidance
 
 PatchPulse uses a separate React frontend and FastAPI backend.
 
@@ -6,6 +6,12 @@ PatchPulse uses a separate React frontend and FastAPI backend.
 - Business workflows belong in services.
 - Pydantic schemas control API input and output.
 - SQLAlchemy models will represent database persistence.
+- Use SQLAlchemy 2.0 directly, not SQLModel.
+- Use synchronous database sessions for the MVP.
+- Use Alembic for schema changes.
+- Never create production tables automatically at startup.
+- Do not expose database models directly as API responses.
+- Do not log credentials or full database URLs.
 - GitHub and OSV communication will belong in clients.
 - External input must be treated as untrusted.
 - GitHub tokens and other secrets must remain backend-only.
