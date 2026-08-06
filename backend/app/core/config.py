@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     environment: str = Field(default="local")
     api_prefix: str = Field(default="/api/v1")
     allowed_frontend_origin: str = Field(default="http://localhost:5173")
+    database_url: SecretStr = Field(validation_alias="DATABASE_URL")
 
     model_config = SettingsConfigDict(
         env_file=".env",
