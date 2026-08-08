@@ -15,6 +15,11 @@ router = APIRouter(prefix="/scans", tags=["scans"])
 
 
 def _response(scan: object) -> ScanResponse:
+    """Translate an eagerly loaded ORM graph into the public scan-detail contract.
+
+    Keeping this mapping explicit prevents raw OSV JSON and SQLAlchemy internals from
+    entering either the API response or generated OpenAPI schema.
+    """
     dependencies = scan.dependencies
     findings = [finding for dependency in dependencies for finding in dependency.findings]
     unsupported = [dependency for dependency in dependencies if not dependency.is_supported]
@@ -51,6 +56,7 @@ def _response(scan: object) -> ScanResponse:
 
 @router.get("", response_model=list[ScanSummary])
 def read_scans(session: DatabaseSession, current_user: CurrentUser) -> list[ScanSummary]:
+    """Return concise history; nested findings are reserved for scan detail."""
     return [
         ScanSummary(
             **_response(scan).model_dump(

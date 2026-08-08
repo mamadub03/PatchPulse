@@ -12,10 +12,13 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Importing app.models above registers every mapping on this shared metadata. Alembic
+# uses it for revision generation; the running application never calls create_all().
 target_metadata = Base.metadata
 
 
 def get_database_url() -> str:
+    """Read migration credentials from the same secret-backed settings as the app."""
     return get_settings().database_url.get_secret_value()
 
 

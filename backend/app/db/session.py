@@ -21,6 +21,11 @@ def get_session_factory() -> sessionmaker[Session]:
 
 
 def get_db_session() -> Generator[Session]:
+    """Provide one synchronous request session with rollback and close guarantees.
+
+    Workflow services own successful commit boundaries; this dependency handles only
+    unhandled SQLAlchemy failures and resource cleanup.
+    """
     session = get_session_factory()()
     try:
         yield session
@@ -32,4 +37,5 @@ def get_db_session() -> Generator[Session]:
 
 
 def check_database_connection(session: Session) -> None:
+    """Execute the deliberately minimal database readiness probe."""
     session.execute(text("SELECT 1"))

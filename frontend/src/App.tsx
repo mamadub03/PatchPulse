@@ -28,6 +28,8 @@ type RequestState = "idle" | "loading" | "success" | "error";
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  // All browser traffic goes through PatchPulse. GitHub/OSV credentials and calls
+  // remain backend-only trust boundaries.
   const response = await fetch(`${apiBaseUrl}/api/v1${path}`, options);
   const payload = (await response.json()) as T & { detail?: string };
   if (!response.ok) {
@@ -49,6 +51,7 @@ function App() {
   const [message, setMessage] = useState<string | null>(null);
 
   const loadRepositories = useCallback(async () => {
+    // Repository ownership is enforced again by the backend; this state only drives UI.
     setRepositoryState("loading");
     try {
       setRepositories(await apiRequest<Repository[]>("/repositories"));
@@ -71,6 +74,8 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // These checks are intentionally independent: liveness may remain healthy while
+    // PostgreSQL readiness is unavailable.
     void apiRequest<{ status: string }>("/health")
       .then(() => setApiStatus("API is healthy"))
       .catch(() => setApiStatus("API unavailable"));
@@ -102,6 +107,8 @@ function App() {
   }
 
   async function startScan(repositoryId: string) {
+    // The active repository disables every Start Scan button during this synchronous
+    // request. The backend also rejects an already-running scan for defense in depth.
     setActiveRepository(repositoryId);
     setMessage(null);
     try {
@@ -123,6 +130,8 @@ function App() {
   }
 
   async function viewScan(scanId: string) {
+    // Historical results come from PostgreSQL through scan detail; viewing them never
+    // re-contacts GitHub or OSV.
     setMessage(null);
     try {
       setSelectedScan(await apiRequest<Scan>(`/scans/${scanId}`));

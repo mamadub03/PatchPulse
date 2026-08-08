@@ -18,6 +18,7 @@ router = APIRouter(prefix="/repositories", tags=["repositories"])
 
 
 def github_dependency() -> Generator[GitHubClient]:
+    """Create one credential-bearing GitHub client per request and always close it."""
     generator = get_github_client()
     try:
         client = next(generator)
@@ -33,6 +34,7 @@ GitHubDependency = Annotated[GitHubClient, Depends(github_dependency)]
 
 
 def osv_dependency() -> Generator[OsvClient]:
+    """Create one OSV client using environment-driven endpoint and timeout settings."""
     settings = get_settings()
     client = OsvClient(
         settings.osv_api_url,
@@ -84,6 +86,7 @@ def create_scan(
     osv: OsvDependency,
     settings: AppSettings,
 ) -> ScanResponse:
+    """Validate HTTP inputs and delegate authorization/orchestration to the service."""
     try:
         scan = start_scan(
             session,
