@@ -52,6 +52,8 @@ class GitHubRepository:
 
 
 class GitHubClient:
+    """Small GitHub REST adapter that never exposes credentials or raw failures."""
+
     def __init__(
         self,
         token: str,
@@ -77,6 +79,7 @@ class GitHubClient:
         self._client.close()
 
     def list_repositories(self) -> list[GitHubRepository]:
+        """List every repository visible to the configured credential, page by page."""
         repositories: list[GitHubRepository] = []
         page = 1
         while True:
@@ -93,6 +96,7 @@ class GitHubClient:
             page += 1
 
     def get_requirements_file(self, repository: GitHubRepository) -> bytes:
+        """Return decoded root requirements.txt bytes from the recorded default branch."""
         payload = self._request_json(
             "GET",
             f"/repos/{repository.owner}/{repository.name}/contents/requirements.txt",
@@ -117,6 +121,7 @@ class GitHubClient:
         missing_is_not_found: bool = False,
         **kwargs: Any,
     ) -> Any:
+        """Map untrusted GitHub responses into stable, user-safe domain errors."""
         try:
             response = self._client.request(method, path, **kwargs)
         except (httpx.TimeoutException, httpx.NetworkError) as exc:

@@ -24,6 +24,8 @@ class OsvVulnerability:
 
 
 class OsvClient:
+    """Synchronous OSV batch client for exact PyPI package versions."""
+
     def __init__(
         self,
         api_url: str = "https://api.osv.dev",
@@ -41,6 +43,7 @@ class OsvClient:
         self._client.close()
 
     def query_batch(self, dependencies: list[tuple[str, str]]) -> list[list[OsvVulnerability]]:
+        """Return results aligned by index with the submitted dependency sequence."""
         if not dependencies:
             return []
         queries = [
@@ -71,9 +74,12 @@ class OsvClient:
 
     @staticmethod
     def _normalize(data: dict[str, Any]) -> OsvVulnerability:
+        """Extract conservative display fields while preserving the complete source object."""
         osv_id = data.get("id")
         if not isinstance(osv_id, str) or not osv_id:
             raise ValueError
+        # OSV commonly supplies CVSS vectors rather than a categorical level. PatchPulse
+        # only accepts an explicit recognized label; it never invents LOW for missing data.
         severity = None
         for container in (data.get("database_specific", {}), data.get("ecosystem_specific", {})):
             candidate = container.get("severity") if isinstance(container, dict) else None
@@ -94,6 +100,8 @@ class OsvClient:
             ),
             None,
         )
+        # The first explicit fixed event is useful for the MVP. Full affected-range
+        # interpretation remains a future hardening concern.
         fixed = None
         for affected in data.get("affected", []):
             for version_range in affected.get("ranges", []) if isinstance(affected, dict) else []:

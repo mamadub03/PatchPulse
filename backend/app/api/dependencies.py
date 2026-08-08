@@ -13,6 +13,11 @@ AppSettings = Annotated[Settings, Depends(get_settings)]
 
 
 def get_current_user(session: DatabaseSession, settings: AppSettings) -> User:
+    """Resolve the temporary server-controlled identity used by the local MVP.
+
+    Identity deliberately comes from backend configuration, never request data. Real
+    authentication can replace this dependency without changing ownership-aware routes.
+    """
     user = session.scalar(select(User).where(User.email == settings.dev_user_email))
     if user is None:
         raise HTTPException(

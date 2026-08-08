@@ -36,6 +36,12 @@ def start_scan(
     requirements_max_bytes: int,
     osv: OsvClient | None = None,
 ) -> Scan:
+    """Run one synchronous, ownership-scoped scan and persist its full lifecycle.
+
+    The initial commit makes ``running`` observable before external I/O. Result rows
+    and the final successful status are committed together so partial data is never
+    reported as a completed scan.
+    """
     repository = session.scalar(
         select(Repository).where(
             Repository.id == repository_id,
@@ -44,6 +50,8 @@ def start_scan(
     )
     if repository is None:
         raise RepositoryNotFoundError()
+    # This is a pragmatic single-database guard, not a distributed lock. A future
+    # worker-based architecture should replace it with stronger coordination.
     running_scan = session.scalar(
         select(Scan.id).where(
             Scan.repository_id == repository.id,
@@ -86,6 +94,8 @@ def start_scan(
             )
         parsed = parse_requirements(content)
         supported = [item for item in parsed if item.is_supported]
+        # Avoid an empty OSV request: scans containing only unsupported requirements
+        # are valid warning completions and do not need external vulnerability I/O.
         osv_results = (
             osv.query_batch([(item.package_name, item.version) for item in supported])
             if osv
@@ -144,6 +154,8 @@ def start_scan(
                 )
             supported_index += 1
     except (GitHubError, OsvError, RequirementsFileError, ValueError) as exc:
+        # Roll back any staged dependencies/findings, but retain the separately
+        # committed scan row so users receive an honest persisted failure.
         session.rollback()
         scan = session.get(Scan, scan.id)
         scan.status = ScanStatus.FAILED
@@ -175,6 +187,8 @@ def start_scan(
     try:
         session.commit()
     except SQLAlchemyError:
+        # A result commit must never leak through as success. Marking failure is best
+        # effort because a fully unavailable database may also reject this commit.
         session.rollback()
         logger.error(
             "Scan result persistence failed scan_id=%s repository_id=%s",
@@ -194,6 +208,7 @@ def start_scan(
 
 
 def list_user_scans(session: Session, user: User) -> list[Scan]:
+    """Load only the user's scans with result relationships eagerly populated."""
     return list(
         session.scalars(
             select(Scan)
@@ -211,6 +226,7 @@ def list_user_scans(session: Session, user: User) -> list[Scan]:
 
 
 def get_user_scan(session: Session, user: User, scan_id: uuid.UUID) -> Scan | None:
+    """Return a scan only when its repository is owned by the current user."""
     return session.scalar(
         select(Scan)
         .join(Scan.repository)

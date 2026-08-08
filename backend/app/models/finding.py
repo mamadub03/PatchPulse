@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 
 class ScanDependency(Base):
+    """One immutable requirements entry observed during one historical scan."""
+
     __tablename__ = "scan_dependencies"
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     scan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scans.id"), index=True)
@@ -29,6 +31,8 @@ class ScanDependency(Base):
 
 
 class Vulnerability(Base):
+    """Reusable OSV identity plus normalized fields and internal source JSON."""
+
     __tablename__ = "vulnerabilities"
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     osv_id: Mapped[str] = mapped_column(String(255), unique=True, index=True)
@@ -44,6 +48,8 @@ class Vulnerability(Base):
 
 
 class Finding(Base):
+    """A vulnerability affecting a particular dependency in a particular scan."""
+
     __tablename__ = "findings"
     __table_args__ = (
         UniqueConstraint(
