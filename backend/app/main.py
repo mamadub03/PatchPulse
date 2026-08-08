@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
@@ -6,6 +7,8 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.core.config import Settings, get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -29,7 +32,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> Response:
         try:
             return await call_next(request)
-        except Exception:
+        except Exception as exc:
+            logger.error(
+                "Unhandled request failure path=%s error_type=%s",
+                request.url.path,
+                type(exc).__name__,
+            )
             return JSONResponse(
                 status_code=500,
                 content={"detail": "Internal server error"},

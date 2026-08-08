@@ -30,7 +30,7 @@ def test_readiness_returns_ok_when_database_check_succeeds(monkeypatch) -> None:
     assert response.json() == {"status": "ready", "database": "connected"}
 
 
-def test_readiness_returns_safe_503_when_database_check_fails(monkeypatch) -> None:
+def test_readiness_returns_safe_503_when_database_check_fails(monkeypatch, caplog) -> None:
     app = create_app()
     app.dependency_overrides[get_db_session] = lambda: object()
 
@@ -51,3 +51,7 @@ def test_readiness_returns_safe_503_when_database_check_fails(monkeypatch) -> No
     assert "secret" not in response.text
     assert "localhost" not in response.text
     assert "SELECT 1" not in response.text
+    assert "OperationalError" in caplog.text
+    assert "secret" not in caplog.text
+    assert "localhost" not in caplog.text
+    assert "SELECT 1" not in caplog.text

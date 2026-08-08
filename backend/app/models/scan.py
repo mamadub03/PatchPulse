@@ -10,6 +10,7 @@ from sqlalchemy.types import Uuid
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.finding import ScanDependency
     from app.models.repository import Repository
 
 
@@ -58,3 +59,4 @@ class Scan(Base):
     )
 
     repository: Mapped["Repository"] = relationship(back_populates="scans")
+    dependencies: Mapped[list["ScanDependency"]] = relationship(back_populates="scan")

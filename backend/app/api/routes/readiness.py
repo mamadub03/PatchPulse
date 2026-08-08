@@ -21,8 +21,11 @@ SessionDependency = Depends(get_db_session)
 def read_readiness(session: Session = SessionDependency) -> ReadinessResponse | JSONResponse:
     try:
         check_database_connection(session)
-    except SQLAlchemyError:
-        logger.warning("Database readiness check failed", exc_info=True)
+    except SQLAlchemyError as exc:
+        logger.warning(
+            "Database readiness check failed (error_type=%s)",
+            type(exc).__name__,
+        )
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content=ReadinessResponse(status="not_ready", database="unavailable").model_dump(),
