@@ -1,8 +1,8 @@
 services:
 
-  # notice in here we dont add a port to the postgres service, because we dont want or need it to be accessible from outside the docker network
   postgres:
     image: postgres:17
+
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -16,6 +16,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
 
   backend:
     build:
@@ -33,6 +34,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+
+    ports:
+      - "3000:80"
+
+    depends_on:
+      - backend
+
 
 volumes:
   postgres_data:

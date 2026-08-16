@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     app_name: str = Field(default="PatchPulse API")
     environment: str = Field(default="local")
     api_prefix: str = Field(default="/api/v1")
-    allowed_frontend_origin: str = Field(default="http://localhost:5173")
+    allowed_frontend_origin: str = Field(default="http://localhost:3000")
     database_url: SecretStr = Field(validation_alias="DATABASE_URL")
     dev_user_email: str = Field(default="dev@patchpulse.local")
     github_token: SecretStr | None = Field(default=None, validation_alias="GITHUB_TOKEN")
