@@ -1,0 +1,38 @@
+services:
+
+  # notice in here we dont add a port to the postgres service, because we dont want or need it to be accessible from outside the docker network
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      PATCHPULSE_DEV_USER_EMAIL: ${PATCHPULSE_DEV_USER_EMAIL}
+      ALLOWED_FRONTEND_ORIGIN: ${ALLOWED_FRONTEND_ORIGIN}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
